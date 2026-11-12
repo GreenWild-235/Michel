@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Operation Freigabe</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one amber-phosphor console panel, header status strip, scrolling log, input line; reveal swaps in a voucher card */
+:root{
+  --bg:#0f0b07;
+  --panel:#17110a;
+  --line:#3a2a14;
+  --amber:#ffb340;
+  --amber-dim:#a8762c;
+  --amber-soft:#5c4220;
+  --ok:#9be38a;
+  --err:#ff6a4d;
+  --display:"Chakra Petch","Arial Narrow",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  background:var(--bg);color:var(--amber);font-family:var(--mono);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:32px 48px;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(255,179,64,.08),transparent 60%);
+}
+.wrap{max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.console{
+  position:relative;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 20px 60px rgba(0,0,0,.5),inset 0 0 80px rgba(255,179,64,.04);
+}
+.console::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.18) 2px 3px);
+}
+.bar{
+  display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;
+  padding:10px 16px;border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber-dim);
+}
+.pips{display:flex;gap:6px;align-items:center}
+.pip{width:22px;height:8px;border:1px solid var(--amber-dim);border-radius:1px}
+.pip.on{background:var(--amber);border-color:var(--amber);box-shadow:0 0 8px var(--amber)}
+.body{padding:20px 16px 18px;display:flex;flex-direction:column;gap:14px}
+h1{
+  font-family:var(--display);font-weight:700;font-size:clamp(26px,6vw,38px);line-height:1.05;margin:0;
+  letter-spacing:.02em;text-transform:uppercase;text-shadow:0 0 14px rgba(255,179,64,.45);text-wrap:balance;
+}
+.sub{color:var(--amber-dim);font-size:13px;margin:0}
+.log{display:flex;flex-direction:column;gap:6px;min-height:180px;min-width:0}
+.log p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.log .sys{color:var(--amber-dim)}
+.log .you{color:var(--amber)}
+.log .you::before{content:"› ";color:var(--amber-dim)}
+.log .ok{color:var(--ok)}
+.log .err{color:var(--err)}
+.log .hint{color:var(--amber);border-left:2px solid var(--amber-soft);padding-left:10px}
+.log .big{font-family:var(--display);font-size:20px;letter-spacing:.12em;color:var(--amber);text-shadow:0 0 10px rgba(255,179,64,.5)}
+form{display:flex;gap:8px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:14px}
+.field{flex:1 1 220px;display:flex;align-items:center;gap:8px;border:1px solid var(--amber-soft);border-radius:3px;padding:0 10px;background:rgba(0,0,0,.25);min-width:0}
+.field span{color:var(--amber-dim)}
+input{
+  flex:1;min-width:0;background:transparent;border:0;color:var(--amber);font:inherit;font-size:16px;padding:10px 0;
+  caret-color:var(--amber);text-transform:uppercase;letter-spacing:.06em;
+}
+input:focus{outline:none}
+.field:focus-within{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
+button{
+  font:inherit;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+  border-radius:3px;padding:10px 14px;border:1px solid var(--amber);background:var(--amber);color:var(--bg);
+}
+button.ghost{background:transparent;color:var(--amber)}
+button:hover{filter:brightness(1.1)}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+.foot{font-size:12px;color:var(--amber-dim);text-align:center;margin:0}
+
+/* Voucher */
+.voucher{
+  position:relative;border:2px dashed var(--amber);border-radius:6px;padding:24px 20px;
+  background:linear-gradient(135deg,rgba(255,179,64,.10),rgba(255,179,64,.02));display:flex;flex-direction:column;gap:12px;
+  animation:pop .7s ease-out both;
+}
+.voucher .label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber-dim)}
+.voucher .title{font-family:var(--display);font-weight:700;font-size:clamp(30px,8vw,52px);line-height:1;text-transform:uppercase;text-shadow:0 0 18px rgba(255,179,64,.55)}
+.voucher .what{font-size:17px}
+.voucher .what strong{font-family:var(--display);font-size:24px;letter-spacing:.06em}
+.voucher dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:6px 0 0;font-size:13px}
+.voucher dt{color:var(--amber-dim);text-transform:uppercase;letter-spacing:.08em}
+.voucher dd{margin:0}
+.stamp{
+  position:absolute;right:14px;top:14px;transform:rotate(8deg);border:2px solid var(--ok);color:var(--ok);
+  font-family:var(--display);font-weight:700;letter-spacing:.12em;padding:4px 10px;font-size:13px;border-radius:3px;
+}
+@keyframes pop{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
+.cursor{display:inline-block;width:.6em;height:1em;background:var(--amber);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.voucher{animation:none}.cursor{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="console">
+    <div class="bar">
+      <span id="who">Terminal 06 · Agent</span>
+      <span class="pips" aria-label="Fortschritt"><span>Freigabe</span><i class="pip" id="p0"></i><i class="pip" id="p1"></i><i class="pip" id="p2"></i></span>
+    </div>
+    <div class="body">
+      <h1 id="headline">Gesicherte Übertragung</h1>
+      <p class="sub" id="subline">Drei Sicherheitsstufen. Erst dann wird die Nachricht entschlüsselt.</p>
+      <div class="log" id="log" aria-live="polite"></div>
+      <form id="form" autocomplete="off">
+        <label class="field" for="answer"><span>›</span><input id="answer" name="answer" placeholder="Antwort eingeben" spellcheck="false" autocapitalize="characters"></label>
+        <button type="submit" id="send">Senden</button>
+        <button type="button" class="ghost" id="hintBtn">Hinweis</button>
+      </form>
+      <div id="reveal" hidden></div>
+    </div>
+  </div>
+  <p class="foot">Verbindung verschlüsselt · Nicht weitergeben</p>
+</div>
+
+<script>
+(function(){
+  var raw = "";
+  try { raw = decodeURIComponent((location.hash||"").replace(/^#/,"")).replace(/[-_]/g," ").trim(); } catch(e){}
+  var name = raw ? raw.charAt(0).toUpperCase()+raw.slice(1) : "";
+  var agent = name ? "Agent " + name : "Agent";
+  document.getElementById("who").textContent = "Terminal 06 · " + agent;
+
+  function norm(s){
+    return (s||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/[^a-z0-9]/g,"");
+  }
+
+  var levels = [
+    {
+      intro:[
+        ["sys","STUFE 1 / 3 · IDENTITÄTSPRÜFUNG"],
+        ["you2","Ich habe Städte, aber keine Häuser.\nIch habe Wälder, aber keine Bäume.\nIch habe Wasser, aber keine Fische.\nOhne mich findest du dich im Einsatzgebiet nicht zurecht.\n\nWas bin ich?"]
+      ],
+      ok:function(a){ return ["karte","landkarte","map","stadtplan","strassenkarte"].indexOf(a)>-1; },
+      hints:["Man faltet mich auf und nie wieder richtig zusammen.","Heute steckt sie meistens im Handy oder als Mini-Version in der Ecke des Bildschirms."]
+    },
+    {
+      intro:[
+        ["sys","STUFE 2 / 3 · MUSTERERKENNUNG"],
+        ["you2","Abgefangene Zahlenfolge. Die letzte Zahl fehlt:\n\n1997 · 2001 · 2002 · 2004 · 2008 · 2013 · ????"]
+      ],
+      ok:function(a){ return a==="2026"; },
+      hints:["Es sind Jahreszahlen. Zwischen den letzten beiden liegt eine sehr, sehr lange Wartezeit.","Jede Zahl markiert einen großen Release derselben Reihe. Die nächste Zahl ist ein Jahr, das gerade läuft."]
+    },
+    {
+      intro:[
+        ["sys","STUFE 3 / 3 · ENTSCHLÜSSELUNG"],
+        ["you2","Letztes Fragment der Nachricht, verschlüsselt:"],
+        ["big","R K U T O J G"],
+        ["you2","Jeder Buchstabe wurde im Alphabet um dieselbe Anzahl Stellen nach vorne geschoben.\nDer Schlüssel ist die Nummer des Teils, auf den du so lange gewartet hast."]
+      ],
+      ok:function(a){ return a==="leonida"; },
+      hints:["Der Schlüssel ist 6. Schiebe jeden Buchstaben 6 Stellen zurück: R wird zu L.","L · E · O · ... Klingt nach einem Ort? Ist es auch."]
+    }
+  ];
+
+  var log = document.getElementById("log");
+  var input = document.getElementById("answer");
+  var form = document.getElementById("form");
+  var hintBtn = document.getElementById("hintBtn");
+  var level = 0, hintIdx = 0, busy = false;
+  var reduce = false;
+  try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){}
+
+  function line(cls, text){
+    var p = document.createElement("p");
+    p.className = cls==="you2" ? "" : cls;
+    p.textContent = text;
+    log.appendChild(p);
+    p.scrollIntoView({block:"nearest"});
+    return p;
+  }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduce?0:ms); }); }
+  async function play(lines){
+    busy = true;
+    for (var i=0;i<lines.length;i++){ line(lines[i][0], lines[i][1]); await wait(380); }
+    busy = false;
+    input.focus({preventScroll:true});
+  }
+  function setPips(){ for (var i=0;i<3;i++) document.getElementById("p"+i).classList.toggle("on", i<level); }
+
+  async function start(){
+    await play([
+      ["sys","Verbindung wird aufgebaut ..."],
+      ["sys","Kanal gesichert. Absender: unbekannt."],
+      ["", "Hallo " + agent + ". Für dich liegt eine verschlüsselte Nachricht bereit.\nBeweise, dass du es wirklich bist."]
+    ]);
+    await play(levels[0].intro);
+  }
+
+  form.addEventListener("submit", async function(e){
+    e.preventDefault();
+    if (busy || level>=levels.length) return;
+    var val = input.value.trim();
+    if (!val) return;
+    input.value = "";
+    line("you", val.toUpperCase());
+    if (levels[level].ok(norm(val))){
+      level++; hintIdx = 0; setPips();
+      if (level<levels.length){
+        await play([["ok","✔ Korrekt. Freigabestufe " + level + " erteilt."]]);
+        await wait(300);
+        await play(levels[level].intro);
+      } else {
+        await play([["ok","✔ Entschlüsselt: LEONIDA"],["sys","Alle Freigaben erteilt. Nachricht wird geöffnet ..."]]);
+        await wait(700);
+        reveal();
+      }
+    } else {
+      var msgs = ["✖ Abgelehnt. Versuch es noch einmal.","✖ Falsch. Das System ist geduldig.","✖ Nein. Der Hinweis-Knopf beißt nicht."];
+      line("err", msgs[Math.floor(Math.random()*msgs.length)]);
+    }
+  });
+
+  hintBtn.addEventListener("click", function(){
+    if (busy || level>=levels.length) return;
+    var h = levels[level].hints;
+    if (hintIdx < h.length){ line("hint","Hinweis: " + h[hintIdx]); hintIdx++; }
+    else line("sys","Keine weiteren Hinweise. Du schaffst das.");
+    input.focus({preventScroll:true});
+  });
+
+  function reveal(){
+    form.hidden = true;
+    document.getElementById("headline").textContent = "Mission erfüllt";
+    document.getElementById("subline").textContent = "Die Nachricht ist entschlüsselt.";
+    var r = document.getElementById("reveal");
+    r.innerHTML =
+      '<div class="voucher">' +
+        '<span class="stamp">FREIGEGEBEN</span>' +
+        '<span class="label">Wunschgutschein</span>' +
+        '<span class="title">Leonida wartet auf dich.</span>' +
+        '<p class="what" style="margin:0">Einzulösen für: <strong>GTA VI</strong></p>' +
+        '<p style="margin:0">Du hast jahrelang gewartet. Jetzt musst du nur noch zugreifen.</p>' +
+        '<dl><dt>Empfänger</dt><dd>' + agent.replace(/[<>&]/g,"") + '</dd><dt>Gültig</dt><dd>Ab sofort</dd><dt>Absender</dt><dd>Lisa</dd></dl>' +
+      '</div>';
+    r.hidden = false;
+    r.scrollIntoView({behavior: reduce?"auto":"smooth", block:"start"});
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>
